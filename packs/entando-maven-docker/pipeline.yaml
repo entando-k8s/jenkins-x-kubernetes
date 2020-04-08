@@ -4,3 +4,65 @@ agent:
   label: entando-jx-maven
   image: entando-jx-maven
   container: maven
+pipelines:
+  pullRequest:
+    build:
+      replace: true
+      steps:
+        - sh: mvn versions:set -DnewVersion=$PREVIEW_VERSION
+          name: set-version
+        - sh: fix-git-branches
+          name: fix-git-for-sonar
+        - sh: mvn-verify-pr
+          name: mvn-verify-pr
+        - sh:  echo $PREVIEW_VERSION>VERSION && skaffold-build
+          name: container-build
+    promote:
+      replace: true
+      steps:
+        - dir: charts/preview
+          steps:
+            - sh: make preview
+              name: make-preview
+            - sh: jx preview --name ${REPO_NAME}-${PIPELINE_CODE}pr${PULL_NUMBER} --app $APP_NAME --dir ../.. --namespace ${REPO_NAME}-${PIPELINE_CODE}pr${PULL_NUMBER}
+              name: jx-preview
+        - sh: run-inter-process-tests
+          name: run-inter-process-tests
+  release:
+    build:
+      replace: true
+      steps:
+        - sh: git fetch origin
+          name: fetch-history-for-sonar
+        - sh: mvn-deploy-release -P${EXECUTABLE_TYPE}
+          name: mvn-deploy-release
+        - sh: skaffold-build
+          name: container-build
+    postBuild:
+      replace: true
+      steps:
+        - sh: jx step post build --image $DOCKER_REGISTRY/$ORG/$APP_NAME:\$(cat VERSION)
+          name: post-build
+        - dir: charts/preview
+          steps:
+            - sh: make preview
+              name: make-preview
+            - sh: jx preview --name ${REPO_NAME}-${PIPELINE_CODE}ms --app $APP_NAME --dir ../.. --namespace ${REPO_NAME}-${PIPELINE_CODE}ms
+              name: jx-preview
+        - sh: run-inter-process-tests
+          name: run-inter-process-tests
+    promote:
+      replace: true
+      steps:
+      - dir: charts/entando-k8s-controller-coordinator
+        steps:
+          - sh: jx step changelog --generate-yaml=false --version v\$(cat ../../VERSION)
+            name: changelog
+          - comment: release the helm chart
+            sh: jx step helm release
+            name: helm-release
+#            - comment: promote through all 'Auto' promotion Environments
+#              sh: jx promote -b --all-auto --timeout 1h --version \$(cat ../../VERSION)
+#              name: jx-promote
+      - sh: publish-image-info
+        name: update-image-map
