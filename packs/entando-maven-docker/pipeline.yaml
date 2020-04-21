@@ -26,8 +26,8 @@ pipelines:
               name: make-preview
             - sh: jx preview --name ${REPO_NAME}-${PIPELINE_CODE}pr${PULL_NUMBER} --app $APP_NAME --dir ../.. --namespace ${REPO_NAME}-${PIPELINE_CODE}pr${PULL_NUMBER}
               name: jx-preview
-        - sh: run-inter-process-tests
-          name: run-inter-process-tests
+        - sh: run-post-deployment-tests
+          name: run-post-deployment-tests
   release:
     build:
       replace: true
@@ -49,8 +49,8 @@ pipelines:
               name: make-preview
             - sh: jx preview --name ${REPO_NAME}-${PIPELINE_CODE}ms --app $APP_NAME --dir ../.. --namespace ${REPO_NAME}-${PIPELINE_CODE}ms
               name: jx-preview
-        - sh: run-inter-process-tests
-          name: run-inter-process-tests
+        - sh: run-post-deployment-tests
+          name: run-post-deployment-tests
     promote:
       replace: true
       steps:
@@ -61,8 +61,8 @@ pipelines:
           - comment: release the helm chart
             sh: jx step helm release
             name: helm-release
-#            - comment: promote through all 'Auto' promotion Environments
-#              sh: jx promote -b --all-auto --timeout 1h --version \$(cat ../../VERSION)
-#              name: jx-promote
+          - comment: promote through all 'Auto' promotion Environments
+            sh: jx promote -b --all-auto --timeout 1h --version \$(cat ../../VERSION)
+            name: jx-promote
       - sh: publish-image-info
         name: update-image-map
