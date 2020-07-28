@@ -54,7 +54,7 @@ pipelines:
     promote:
       replace: true
       steps:
-      - dir: charts/entando-k8s-controller-coordinator
+      - dir: charts/REPLACE_ME_APP_NAME
         steps:
           - sh: jx step changelog --generate-yaml=false --version v\$(cat ../../VERSION)
             name: changelog
